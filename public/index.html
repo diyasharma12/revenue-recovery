@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Revenue Recovery Agent</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Revenue Recovery Agent</h1>
+    <p class="subtitle">Failed subscription payment recovery — Razorpay AI Buildathon, Track 03</p>
+    <button id="runBtn">Run Batch (40 failed payments)</button>
+    <span id="status"></span>
+  </header>
+
+  <section id="summary" class="summary-grid"></section>
+
+  <section id="tableSection">
+    <table id="paymentsTable">
+      <thead>
+        <tr><th>Customer</th><th>Plan</th><th>Amount</th><th>Status</th><th>Attempts</th><th></th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <dialog id="detailModal">
+    <div id="detailContent"></div>
+    <button id="closeModal">Close</button>
+  </dialog>
+
+  <script src="app.js"></script>
+</body>
+</html>

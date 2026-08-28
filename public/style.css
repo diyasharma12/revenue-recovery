@@ -1,0 +1,41 @@
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #0f1115;
+  color: #e6e6e6;
+  margin: 0;
+  padding: 2rem;
+}
+header h1 { margin-bottom: 0.2rem; }
+.subtitle { color: #9aa0a6; margin-top: 0; }
+button {
+  background: #5b8cff;
+  color: white;
+  border: none;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+button:disabled { opacity: 0.5; cursor: default; }
+#status { margin-left: 1rem; color: #9aa0a6; }
+.summary-grid { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+.card { background: #1a1d24; border-radius: 8px; padding: 1rem 1.5rem; min-width: 140px; }
+.card .value { font-size: 1.6rem; font-weight: 600; }
+.card .label { color: #9aa0a6; font-size: 0.85rem; }
+#tableSection { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; min-width: 600px; }
+th, td { text-align: left; padding: 0.6rem; border-bottom: 1px solid #262a33; }
+.badge { padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.8rem; }
+.status-recovered { background: #1e4620; color: #7ee787; }
+.status-escalated { background: #4a3a12; color: #e8b654; }
+.status-given_up { background: #4a1f1f; color: #f28b82; }
+dialog {
+  background: #1a1d24;
+  color: #e6e6e6;
+  border: none;
+  border-radius: 8px;
+  padding: 1.5rem;
+  max-width: 600px;
+}
+dialog::backdrop { background: rgba(0,0,0,0.6); }
+.overridden { color: #e8b654; }
