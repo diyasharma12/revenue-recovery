@@ -1,4 +1,4 @@
-import { recommendAction } from './claudeClient.js';
+import { recommendAction } from './llmClient.js';
 import { MAX_ATTEMPTS, MAX_WINDOW_DAYS, RETRY_SUCCESS_PROB, DEFAULT_RETRY_DELAY_HOURS } from './rules.js';
 
 // Deterministic per-payment PRNG for reproducible outcome simulation

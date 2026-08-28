@@ -4,6 +4,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { generateBatch } from './src/syntheticData.js';
 import { runBatch } from './src/dunningEngine.js';
+import { activeProvider } from './src/llmClient.js';
 
 dotenv.config();
 
@@ -34,6 +35,5 @@ app.get('/api/last-run', (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  const mode = process.env.ANTHROPIC_API_KEY ? 'LIVE (Claude API)' : 'MOCK (no ANTHROPIC_API_KEY set)';
-  console.log(`Revenue Recovery Agent running at http://localhost:${PORT}  [mode: ${mode}]`);
+  console.log(`Revenue Recovery Agent running at http://localhost:${PORT}  [provider: ${activeProvider()}]`);
 });
