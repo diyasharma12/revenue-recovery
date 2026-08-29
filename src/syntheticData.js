@@ -44,7 +44,8 @@ export function generateBatch(count = 40, seed = 42) {
       customerTenureDays: Math.floor(rand() * 900),
       previousSuccessfulPayments: Math.floor(rand() * 24),
       gatewayRawMessage: msg.text,
-      firstFailedAt: new Date(Date.now() - Math.floor(rand() * 5) * 86400000).toISOString()
+      firstFailedAt: new Date(Date.now() - Math.floor(rand() * 5) * 86400000).toISOString(),
+      trueCategory: msg.trueCategory
     });
   }
   return payments;

@@ -1,4 +1,6 @@
 import { recommendAction } from './llmClient.js';
+import { mockRecommend } from './mockClient.js';
+import { evaluateClassifications } from './evaluation.js';
 import { MAX_ATTEMPTS, MAX_WINDOW_DAYS, RETRY_SUCCESS_PROB, DEFAULT_RETRY_DELAY_HOURS } from './rules.js';
 
 // Deterministic per-payment PRNG for reproducible outcome simulation
@@ -12,7 +14,7 @@ function seededRandomFor(id) {
   };
 }
 
-export async function runBatch(payments) {
+export async function runBatch(payments, onProgress) {
   const results = [];
 
   for (const payment of payments) {
@@ -23,9 +25,30 @@ export async function runBatch(payments) {
     let status = 'pending';
     let amountRecovered = 0;
     let hasLowConfidence = false;
+    let hadLlmError = false;
+    let classification = null; // cached diagnosis, reused across retry attempts
 
     while (status === 'pending') {
-      const rec = await recommendAction(payment, { attempt, maxAttempts: MAX_ATTEMPTS, daysSinceFirstFailure });
+      // The gateway decline message and payment facts don't change between
+      // retry attempts on the same payment, so re-diagnosing every attempt
+      // just burns API quota to re-confirm the same classification. Classify
+      // once, then let the code-enforced rules below govern the retry
+      // cadence for subsequent attempts.
+      let llmError = false;
+      if (!classification) {
+        try {
+          classification = await recommendAction(payment, { attempt, maxAttempts: MAX_ATTEMPTS, daysSinceFirstFailure });
+        } catch (err) {
+          // One payment's LLM call failing (rate limit exhausted, transient
+          // API error, etc.) shouldn't take down the whole batch — fall back
+          // to the keyword classifier and flag it for audit/review.
+          console.error(`[llmError] ${payment.id} attempt ${attempt}:`, err.status, err.message?.slice(0, 300));
+          classification = mockRecommend(payment);
+          llmError = true;
+          hadLlmError = true;
+        }
+      }
+      const rec = classification;
 
       let action = rec.recommended_action;
       let overridden = null;
@@ -56,7 +79,9 @@ export async function runBatch(payments) {
         actionTaken: action,
         overridden,
         customerMessage: rec.customer_message,
-        reasoning: rec.reasoning
+        reasoning: rec.reasoning,
+        llmError,
+        reusedDiagnosis: attempt > 1
       };
 
       if (action === 'stop_permanently' || action === 'escalate_to_human') {
@@ -89,9 +114,13 @@ export async function runBatch(payments) {
       status,
       amountRecovered,
       attemptsUsed: history.length,
-      isException: hasLowConfidence,
+      isException: hasLowConfidence || hadLlmError,
+      hadLlmError,
+      predictedCategory: classification.category,
       history
     });
+
+    onProgress?.(results.length, payments.length);
   }
 
   const totalAmount = payments.reduce((s, p) => s + p.amountInr, 0);
@@ -109,7 +138,8 @@ export async function runBatch(payments) {
     recoveryRatePct: Math.round((recovered.length / payments.length) * 1000) / 10,
     escalatedCount: escalated.length,
     givenUpCount: givenUp.length,
-    exceptionsCount: exceptions.length
+    exceptionsCount: exceptions.length,
+    classification: evaluateClassifications(results)
   };
 
   return { summary, payments: results };

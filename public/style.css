@@ -39,3 +39,12 @@ dialog {
 }
 dialog::backdrop { background: rgba(0,0,0,0.6); }
 .overridden { color: #e8b654; }
+#classificationSection { margin: 1.5rem 0; overflow-x: auto; }
+#classificationSection h2 { font-size: 1.1rem; margin-bottom: 0.3rem; }
+.note { color: #9aa0a6; font-size: 0.85rem; }
+.confusion-matrix { min-width: 500px; }
+.confusion-matrix th, .confusion-matrix td { text-align: center; }
+.confusion-matrix thead th:first-child { background: none; }
+.confusion-matrix tbody th { text-align: left; color: #9aa0a6; font-weight: normal; }
+.confusion-matrix td.match { background: #1e4620; color: #7ee787; font-weight: 600; }
+.confusion-matrix td.mismatch { background: #4a1f1f; color: #f28b82; font-weight: 600; }
