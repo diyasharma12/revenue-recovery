@@ -44,7 +44,18 @@ Classify the decline and recommend ONE bounded next action.`;
 export const ACTION_SCHEMA = {
   type: 'object',
   properties: {
-    category: { type: 'string', enum: ['soft_decline', 'hard_decline', 'fraud_suspected', 'customer_action_needed'] },
+    category: {
+      type: 'string',
+      enum: ['soft_decline', 'hard_decline', 'fraud_suspected', 'customer_action_needed'],
+      description:
+        'soft_decline: a temporary issue likely to succeed if simply retried later, with no customer action required ' +
+        '(insufficient funds, bank server timeout, daily limit exceeded). ' +
+        'customer_action_needed: the payment METHOD itself is broken and only the CUSTOMER can fix it before any retry ' +
+        'could work (expired card, failed CVV check, invalid card number) — this is NOT the same as hard_decline. ' +
+        'hard_decline: the issuing bank has non-fraud-related but effectively permanent objections to this card/transaction ' +
+        '(explicit "do not honor", card blocked for security review) — retrying or asking the customer to fix details will not help. ' +
+        'fraud_suspected: card reported lost/stolen or flagged for suspected fraud — never retry or contact the customer for payment.'
+    },
     confidence: { type: 'number', description: '0 to 1' },
     recommended_action: {
       type: 'string',

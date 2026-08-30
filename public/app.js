@@ -2,10 +2,15 @@ const runBtn = document.getElementById('runBtn');
 const statusEl = document.getElementById('status');
 const summaryEl = document.getElementById('summary');
 const classificationEl = document.getElementById('classificationSection');
+const funnelEl = document.getElementById('funnelSection');
 const tbody = document.querySelector('#paymentsTable tbody');
 const modal = document.getElementById('detailModal');
 const detailContent = document.getElementById('detailContent');
+const statusFilter = document.getElementById('statusFilter');
 document.getElementById('closeModal').onclick = () => modal.close();
+
+let currentPayments = [];
+statusFilter.onchange = () => renderTable(currentPayments);
 
 runBtn.onclick = async () => {
   runBtn.disabled = true;
@@ -49,15 +54,53 @@ function render(data) {
   `;
 
   renderClassification(c);
+  renderFunnel(s);
+
+  currentPayments = data.payments;
+  renderTable(currentPayments);
+}
+
+function renderFunnel(s) {
+  const segments = [
+    { label: 'Recovered', count: s.recoveredCount, cls: 'seg-recovered' },
+    { label: 'Escalated', count: s.escalatedCount, cls: 'seg-escalated' },
+    { label: 'Given up', count: s.givenUpCount, cls: 'seg-given_up' }
+  ];
+  const bars = segments.map((seg) => {
+    const pct = s.totalPayments ? (seg.count / s.totalPayments) * 100 : 0;
+    return pct > 0 ? `<div class="funnel-seg ${seg.cls}" style="width:${pct}%" title="${seg.label}: ${seg.count} (${Math.round(pct)}%)">${Math.round(pct)}%</div>` : '';
+  }).join('');
+
+  const legend = segments.map((seg) => `<span class="legend-item"><span class="legend-swatch ${seg.cls}"></span>${seg.label} (${seg.count})</span>`).join('');
+
+  funnelEl.innerHTML = `
+    <div class="funnel-bar">${bars}</div>
+    <div class="funnel-legend">${legend}</div>
+  `;
+}
+
+function paymentFlags(p) {
+  const flags = [];
+  if (p.history.some((h) => h.overridden)) flags.push('<span class="flag flag-overridden" title="A stopping rule overrode the model\'s recommendation">overridden</span>');
+  if (p.hadLlmError) flags.push('<span class="flag flag-error" title="LLM call failed at least once; fell back to keyword classifier">LLM fallback</span>');
+  if (p.isException && !p.hadLlmError) flags.push('<span class="flag flag-warning" title="Model confidence dropped below 0.55 on this payment">low confidence</span>');
+  return flags.join(' ') || '<span class="note">—</span>';
+}
+
+function renderTable(payments) {
+  const filter = statusFilter.value;
+  const filtered = filter === 'all' ? payments : payments.filter((p) => p.status === filter);
 
   tbody.innerHTML = '';
-  data.payments.forEach((p, idx) => {
+  filtered.forEach((p) => {
+    const idx = payments.indexOf(p);
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${p.customerId}</td>
       <td>${p.planName}</td>
       <td>Rs.${p.amountInr}</td>
       <td><span class="badge status-${p.status}">${p.status.replace('_', ' ')}</span></td>
+      <td>${paymentFlags(p)}</td>
       <td>${p.attemptsUsed}</td>
       <td><button data-idx="${idx}" class="viewBtn">View trail</button></td>
     `;
@@ -65,7 +108,7 @@ function render(data) {
   });
 
   document.querySelectorAll('.viewBtn').forEach((btn) => {
-    btn.onclick = () => showDetail(data.payments[btn.dataset.idx]);
+    btn.onclick = () => showDetail(currentPayments[btn.dataset.idx]);
   });
 }
 

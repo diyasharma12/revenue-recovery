@@ -48,3 +48,31 @@ dialog::backdrop { background: rgba(0,0,0,0.6); }
 .confusion-matrix tbody th { text-align: left; color: #9aa0a6; font-weight: normal; }
 .confusion-matrix td.match { background: #1e4620; color: #7ee787; font-weight: 600; }
 .confusion-matrix td.mismatch { background: #4a1f1f; color: #f28b82; font-weight: 600; }
+.table-controls { margin-bottom: 0.8rem; display: flex; align-items: center; gap: 0.5rem; color: #9aa0a6; }
+.table-controls select {
+  background: #1a1d24; color: #e6e6e6; border: 1px solid #262a33;
+  border-radius: 6px; padding: 0.3rem 0.6rem;
+}
+.flag {
+  display: inline-block; padding: 0.15rem 0.5rem; border-radius: 10px;
+  font-size: 0.75rem; margin-right: 0.3rem; white-space: nowrap;
+}
+.flag-overridden { background: #4a3a12; color: #e8b654; }
+.flag-error { background: #4a1f1f; color: #f28b82; }
+.flag-warning { background: #2d2a12; color: #e0d070; }
+#funnelSection { margin: 1.5rem 0; }
+.funnel-bar {
+  display: flex; width: 100%; height: 2rem; border-radius: 6px; overflow: hidden;
+  background: #1a1d24;
+}
+.funnel-seg {
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.75rem; font-weight: 600; color: #0f1115; min-width: 2.5ch;
+  transition: width 0.3s ease;
+}
+.seg-recovered { background: #7ee787; }
+.seg-escalated { background: #e8b654; }
+.seg-given_up { background: #f28b82; }
+.funnel-legend { display: flex; gap: 1.2rem; margin-top: 0.5rem; color: #9aa0a6; font-size: 0.85rem; }
+.legend-item { display: flex; align-items: center; gap: 0.4rem; }
+.legend-swatch { width: 0.8rem; height: 0.8rem; border-radius: 3px; display: inline-block; }
