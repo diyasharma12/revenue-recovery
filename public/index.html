@@ -4,39 +4,56 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Revenue Recovery Agent</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,wght@0,500;0,600;1,500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>Revenue Recovery Agent</h1>
-    <p class="subtitle">Failed subscription payment recovery — Razorpay AI Buildathon, Track 03</p>
-    <button id="runBtn">Run Batch (40 failed payments)</button>
-    <span id="status"></span>
-  </header>
+  <div class="page">
+    <header class="masthead">
+      <p class="eyebrow">Razorpay AI Buildathon &middot; Track 03 &middot; AI Revenue Recovery</p>
+      <div class="masthead-row">
+        <div>
+          <h1>Revenue Recovery Agent</h1>
+          <p class="subtitle">Diagnoses why each subscription payment failed and recovers what can be recovered — bounded by code, not the model.</p>
+        </div>
+        <div class="masthead-action">
+          <button id="runBtn">Run batch — 40 payments</button>
+          <p id="status" class="status-line"></p>
+        </div>
+      </div>
+    </header>
 
-  <section id="summary" class="summary-grid"></section>
+    <section id="summary" class="statement"></section>
 
-  <section id="funnelSection"></section>
+    <section id="funnelSection" class="block"></section>
 
-  <section id="classificationSection"></section>
+    <section id="classificationSection" class="block"></section>
 
-  <section id="tableSection">
-    <div class="table-controls">
-      <label for="statusFilter">Filter:</label>
-      <select id="statusFilter">
-        <option value="all">All statuses</option>
-        <option value="recovered">Recovered</option>
-        <option value="escalated">Escalated</option>
-        <option value="given_up">Given up</option>
-      </select>
-    </div>
-    <table id="paymentsTable">
-      <thead>
-        <tr><th>Customer</th><th>Plan</th><th>Amount</th><th>Status</th><th>Flags</th><th>Attempts</th><th></th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-  </section>
+    <section id="tableSection" class="block">
+      <div class="block-head">
+        <h2>Payment ledger</h2>
+        <div class="table-controls">
+          <label for="statusFilter">Filter</label>
+          <select id="statusFilter">
+            <option value="all">All statuses</option>
+            <option value="recovered">Recovered</option>
+            <option value="escalated">Escalated</option>
+            <option value="given_up">Given up</option>
+          </select>
+        </div>
+      </div>
+      <div class="table-scroll">
+        <table id="paymentsTable">
+          <thead>
+            <tr><th>Customer</th><th>Plan</th><th class="num">Amount</th><th>Status</th><th>Flags</th><th class="num">Attempts</th><th></th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
 
   <dialog id="detailModal">
     <div id="detailContent"></div>

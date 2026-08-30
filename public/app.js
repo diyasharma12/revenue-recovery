@@ -45,12 +45,12 @@ function render(data) {
   const s = data.summary;
   const c = s.classification;
   summaryEl.innerHTML = `
-    <div class="card"><div class="value">${s.recoveryRatePct}%</div><div class="label">Recovery rate</div></div>
-    <div class="card"><div class="value">Rs.${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
-    <div class="card"><div class="value">${c.accuracyPct === null ? 'N/A' : c.accuracyPct + '%'}</div><div class="label">Classification accuracy (${c.correctCount}/${c.scorableCount})</div></div>
-    <div class="card"><div class="value">${s.escalatedCount}</div><div class="label">Escalated</div></div>
-    <div class="card"><div class="value">${s.givenUpCount}</div><div class="label">Given up</div></div>
-    <div class="card"><div class="value">${s.exceptionsCount}</div><div class="label">Exceptions (low confidence)</div></div>
+    <div class="stat"><div class="value">${s.recoveryRatePct}%</div><div class="label">Recovery rate</div></div>
+    <div class="stat good"><div class="value">Rs.${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
+    <div class="stat accent"><div class="value">${c.accuracyPct === null ? 'N/A' : c.accuracyPct + '%'}</div><div class="label">Classification accuracy (${c.correctCount}/${c.scorableCount})</div></div>
+    <div class="stat warn"><div class="value">${s.escalatedCount}</div><div class="label">Escalated</div></div>
+    <div class="stat bad"><div class="value">${s.givenUpCount}</div><div class="label">Given up</div></div>
+    <div class="stat warn"><div class="value">${s.exceptionsCount}</div><div class="label">Exceptions (low confidence)</div></div>
   `;
 
   renderClassification(c);
@@ -74,6 +74,7 @@ function renderFunnel(s) {
   const legend = segments.map((seg) => `<span class="legend-item"><span class="legend-swatch ${seg.cls}"></span>${seg.label} (${seg.count})</span>`).join('');
 
   funnelEl.innerHTML = `
+    <h2>Outcome breakdown</h2>
     <div class="funnel-bar">${bars}</div>
     <div class="funnel-legend">${legend}</div>
   `;
@@ -98,10 +99,10 @@ function renderTable(payments) {
     tr.innerHTML = `
       <td>${p.customerId}</td>
       <td>${p.planName}</td>
-      <td>Rs.${p.amountInr}</td>
-      <td><span class="badge status-${p.status}">${p.status.replace('_', ' ')}</span></td>
+      <td class="num">Rs.${p.amountInr}</td>
+      <td><span class="status status-${p.status}"><span class="status-dot"></span>${p.status.replace('_', ' ')}</span></td>
       <td>${paymentFlags(p)}</td>
-      <td>${p.attemptsUsed}</td>
+      <td class="num">${p.attemptsUsed}</td>
       <td><button data-idx="${idx}" class="viewBtn">View trail</button></td>
     `;
     tbody.appendChild(tr);
@@ -148,7 +149,7 @@ function showDetail(p) {
 
   detailContent.innerHTML = `
     <h3>${p.customerId} — ${p.planName} (Rs.${p.amountInr})</h3>
-    <p>Raw decline message: <em>"${p.gatewayRawMessage}"</em></p>
+    <p class="raw-message">"${p.gatewayRawMessage}"</p>
     ${groundTruthLine}
     <ol>
       ${p.history.map((h) => `
