@@ -85,14 +85,14 @@ button#runBtn:disabled { opacity: 0.5; cursor: default; }
   display: flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 4px;
   background: var(--surface); margin-bottom: 2rem;
 }
-.stat { flex: 1 1 150px; min-width: 0; padding: 1rem 1.3rem; border-right: 1px solid var(--rule); }
+.stat { flex: 1 1 150px; padding: 1rem 1.3rem; border-right: 1px solid var(--rule); }
 .stat:last-child { border-right: none; }
 .stat .value {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 1.4rem; font-weight: 500; font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
-.stat .label { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.35rem; overflow-wrap: anywhere; }
+.stat .label { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.35rem; }
 .stat.good .value { color: var(--good); }
 .stat.warn .value { color: var(--warn); }
 .stat.bad .value { color: var(--bad); }
