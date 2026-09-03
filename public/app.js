@@ -1,5 +1,9 @@
 import { simulatePolicy } from '/src/policySimulator.js';
 
+// Category/action values from the model are snake_case identifiers
+// (e.g. "customer_action_needed") — fine as code, unreadable as UI text.
+const humanize = (s) => s.replace(/_/g, ' ');
+
 const runBtn = document.getElementById('runBtn');
 const statusEl = document.getElementById('status');
 const summaryEl = document.getElementById('summary');
@@ -71,8 +75,8 @@ function render(data) {
 
 function funnelBarHTML(segments, total) {
   const bars = segments.map((seg) => {
-    const pct = total ? (seg.count / total) * 100 : 0;
-    return pct > 0 ? `<div class="funnel-seg ${seg.cls}" style="width:${pct}%" title="${seg.label}: ${seg.count} (${Math.round(pct)}%)">${Math.round(pct)}%</div>` : '';
+    const pct = total ? Math.round((seg.count / total) * 1000) / 10 : 0;
+    return pct > 0 ? `<div class="funnel-seg ${seg.cls}" style="width:${pct}%" title="${seg.label}: ${seg.count} (${pct}%)">${pct}%</div>` : '';
   }).join('');
   const legend = segments.map((seg) => `<span class="legend-item"><span class="legend-swatch ${seg.cls}"></span>${seg.label} (${seg.count})</span>`).join('');
   return `<div class="funnel-bar">${bars}</div><div class="funnel-legend">${legend}</div>`;
@@ -242,7 +246,7 @@ function renderTable(payments) {
       <td>${p.customerId}</td>
       <td>${p.planName}</td>
       <td class="num">Rs.${p.amountInr}</td>
-      <td><span class="status status-${p.status}"><span class="status-dot"></span>${p.status.replace('_', ' ')}</span></td>
+      <td><span class="status status-${p.status}"><span class="status-dot"></span>${humanize(p.status)}</span></td>
       <td>${paymentFlags(p)}</td>
       <td class="num">${p.attemptsUsed}</td>
       <td><button data-idx="${idx}" class="viewBtn">View trail</button></td>
@@ -264,20 +268,20 @@ function renderClassification(c) {
       const cls = predCat === trueCat ? 'match' : count > 0 ? 'mismatch' : '';
       return `<td class="${cls}">${count || ''}</td>`;
     }).join('');
-    return `<tr><th>${trueCat}</th>${cells}</tr>`;
+    return `<tr><th>${humanize(trueCat)}</th>${cells}</tr>`;
   }).join('');
 
   const ambiguousNote = c.ambiguousCount
     ? `<p class="note">${c.ambiguousCount} payment(s) had a deliberately ambiguous decline message with no single correct category
        — excluded from the accuracy score above. The model classified them as:
-       ${Object.entries(c.ambiguousBreakdown).map(([cat, n]) => `${cat} (${n})`).join(', ')}.</p>`
+       ${Object.entries(c.ambiguousBreakdown).map(([cat, n]) => `${humanize(cat)} (${n})`).join(', ')}.</p>`
     : '';
 
   classificationEl.innerHTML = `
     <h2>Classification accuracy vs. ground truth</h2>
     <p class="note">Predicted category (columns) vs. actual synthetic ground truth (rows). Diagonal = correct.</p>
     <table class="confusion-matrix">
-      <thead><tr><th></th>${categories.map((cat) => `<th>${cat}</th>`).join('')}</tr></thead>
+      <thead><tr><th></th>${categories.map((cat) => `<th>${humanize(cat)}</th>`).join('')}</tr></thead>
       <tbody>${rows}</tbody>
     </table>
     ${ambiguousNote}
@@ -286,8 +290,8 @@ function renderClassification(c) {
 
 function showDetail(p) {
   const groundTruthLine = p.trueCategory === 'ambiguous'
-    ? `<p><em>Ground truth: deliberately ambiguous — model predicted "${p.predictedCategory}"</em></p>`
-    : `<p><em>Ground truth: ${p.trueCategory} — model predicted "${p.predictedCategory}" ${p.predictedCategory === p.trueCategory ? '(correct)' : '(incorrect)'}</em></p>`;
+    ? `<p><em>Ground truth: deliberately ambiguous — model predicted "${humanize(p.predictedCategory)}"</em></p>`
+    : `<p><em>Ground truth: ${humanize(p.trueCategory)} — model predicted "${humanize(p.predictedCategory)}" ${p.predictedCategory === p.trueCategory ? '(correct)' : '(incorrect)'}</em></p>`;
 
   detailContent.innerHTML = `
     <h3>${p.customerId} — ${p.planName} (Rs.${p.amountInr})</h3>
@@ -296,8 +300,8 @@ function showDetail(p) {
     <ol>
       ${p.history.map((h) => `
         <li>
-          <strong>Attempt ${h.attempt}</strong> — category: ${h.category} (confidence ${h.confidence})<br>
-          Model recommended: ${h.modelRecommendedAction}${h.overridden ? ` <span class="overridden">(overridden by stopping rules -&gt; ${h.actionTaken})</span>` : ` -&gt; ${h.actionTaken}`}<br>
+          <strong>Attempt ${h.attempt}</strong> — category: ${humanize(h.category)} (confidence ${h.confidence})<br>
+          Model recommended: ${humanize(h.modelRecommendedAction)}${h.overridden ? ` <span class="overridden">(overridden by stopping rules -&gt; ${humanize(h.actionTaken)})</span>` : ` -&gt; ${humanize(h.actionTaken)}`}<br>
           Message sent: "${h.customerMessage}"<br>
           Reasoning: ${h.reasoning}${h.reusedDiagnosis ? ' <em>(reused from attempt 1 — nothing new to re-diagnose)</em>' : ''}<br>
           ${h.llmError ? '<span class="overridden">(LLM call failed — fell back to keyword classifier for this attempt)</span><br>' : ''}
@@ -305,7 +309,7 @@ function showDetail(p) {
         </li>
       `).join('')}
     </ol>
-    <p><strong>Final status:</strong> ${p.status}</p>
+    <p><strong>Final status:</strong> ${humanize(p.status)}</p>
   `;
   modal.showModal();
 }
