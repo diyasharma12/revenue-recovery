@@ -80,23 +80,36 @@ button#runBtn {
 button#runBtn:hover { filter: brightness(1.1); }
 button#runBtn:disabled { opacity: 0.5; cursor: default; }
 
-/* Statement strip (summary) */
+/* Statement strip (summary) — amount recovered is the headline, recovery
+   rate second, everything else is supporting detail. Six equal-weight
+   numbers means nothing is actually emphasized. */
 .statement {
-  display: flex; flex-wrap: wrap; border: 1px solid var(--rule); border-radius: 4px;
+  border: 1px solid var(--rule); border-radius: 4px; overflow: hidden;
   background: var(--surface); margin-bottom: 2rem;
 }
-.stat { flex: 1 1 150px; padding: 1rem 1.3rem; border-right: 1px solid var(--rule); }
-.stat:last-child { border-right: none; }
-.stat .value {
-  font-family: 'IBM Plex Mono', ui-monospace, monospace;
-  font-size: 1.4rem; font-weight: 500; font-variant-numeric: tabular-nums;
-  white-space: nowrap;
+.headline-row { display: flex; flex-wrap: wrap; }
+.headline-stat { padding: 1.2rem 1.3rem; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }
+.headline-stat:last-child { border-right: none; }
+.headline-stat.primary { flex: 1.6 1 220px; }
+.headline-stat.secondary { flex: 1 1 150px; }
+.headline-stat .value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 600;
+  font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--good);
 }
-.stat .label { color: var(--muted); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.07em; margin-top: 0.35rem; }
-.stat.good .value { color: var(--good); }
-.stat.warn .value { color: var(--warn); }
-.stat.bad .value { color: var(--bad); }
-.stat.accent .value { color: var(--accent); }
+.headline-stat.primary .value { font-size: 2.1rem; }
+.headline-stat.secondary .value { font-size: 1.5rem; color: var(--ink); }
+.headline-stat .label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.35rem; }
+.support-row { display: flex; flex-wrap: wrap; background: var(--surface-2); }
+.support-stat { flex: 1 1 120px; padding: 0.65rem 1.3rem; border-right: 1px solid var(--rule); }
+.support-stat:last-child { border-right: none; }
+.support-stat .value {
+  font-family: 'IBM Plex Mono', ui-monospace, monospace;
+  font-size: 0.95rem; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.support-stat .label { color: var(--muted); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.25rem; }
+.support-stat.accent .value { color: var(--accent); }
+.support-stat.warn .value { color: var(--warn); }
+.support-stat.bad .value { color: var(--bad); }
 
 .block { margin-bottom: 2rem; }
 .block-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 0.6rem; }
@@ -149,7 +162,9 @@ tbody tr:hover { background: var(--surface-2); }
 .flag { font-family: 'IBM Plex Mono', monospace; font-size: 0.72rem; margin-right: 0.5rem; white-space: nowrap; }
 .flag::before { content: '['; }
 .flag::after { content: ']'; }
-.flag-overridden { color: var(--warn); }
+.flag-cap { color: var(--warn); }
+.flag-window { color: var(--accent); }
+.flag-fraud { color: var(--bad); }
 .flag-error { color: var(--bad); }
 .flag-warning { color: var(--warn); }
 
@@ -199,21 +214,31 @@ dialog button#closeModal {
 }
 .overridden { color: var(--warn); }
 
-/* Policy sandbox */
-.sandbox-controls {
-  display: flex; gap: 2rem; flex-wrap: wrap; align-items: center;
-  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
-  padding: 1rem 1.3rem; margin-bottom: 1rem;
+/* Policy sandbox — presets instead of raw sliders, deltas instead of a
+   second copy of the summary stats. */
+.preset-row { display: flex; gap: 0.7rem; flex-wrap: wrap; margin-bottom: 1rem; }
+.preset-btn {
+  flex: 1 1 150px; border: 1px solid var(--rule); background: var(--surface);
+  border-radius: 6px; padding: 0.75rem 0.9rem; cursor: pointer; text-align: left;
+  font-family: inherit; color: var(--ink);
 }
-.sandbox-controls label {
-  display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8rem; color: var(--muted);
-  min-width: 200px;
+.preset-btn .name { font-weight: 600; font-size: 0.88rem; }
+.preset-btn .detail { color: var(--muted); font-size: 0.75rem; margin-top: 0.25rem; }
+.preset-btn.active { border-color: var(--accent); border-width: 2px; background: var(--surface-2); }
+.preset-btn.active .name { color: var(--accent); }
+.preset-btn:hover:not(.active) { border-color: var(--muted); }
+
+.delta-line { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: center; }
+.delta { font-family: 'IBM Plex Mono', monospace; font-size: 0.9rem; font-weight: 600; padding: 0.3rem 0.6rem; border-radius: 4px; }
+.delta.bad { color: var(--bad); background: var(--bad-bg); }
+.delta.good { color: var(--good); background: var(--good-bg); }
+.delta.neutral { color: var(--muted); background: var(--surface-2); }
+.unchanged-note { color: var(--muted); font-style: italic; font-size: 0.88rem; }
+
+/* Ledger collapse */
+.show-all-btn {
+  display: block; width: 100%; margin-top: 0.6rem; background: none;
+  border: 1px dashed var(--rule); color: var(--accent); font-family: inherit;
+  padding: 0.6rem; border-radius: 6px; cursor: pointer; font-size: 0.85rem;
 }
-.sandbox-controls label span {
-  font-family: 'IBM Plex Mono', monospace; color: var(--ink); font-size: 0.95rem; font-weight: 500;
-}
-.sandbox-controls input[type="range"] {
-  accent-color: var(--accent); width: 100%;
-}
-.sandbox-controls button { margin-left: auto; }
-.sandbox-statement { margin-bottom: 0.8rem; }
+.show-all-btn:hover { border-color: var(--accent); }

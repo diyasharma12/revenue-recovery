@@ -62,7 +62,13 @@ card.
   probability model per decline category (`RETRY_SUCCESS_PROB` in
   `src/rules.js`). In production, the "execute" step would call Razorpay's
   actual retry/notification APIs and this simulation would be replaced by
-  the real result.
+  the real result. **On methodology:** those per-category probabilities are
+  ours, so the absolute recovered-amount figure is a modeling assumption,
+  not a measured fact — but the *same* table is applied identically to this
+  agent and both naive baselines below, so whatever the true numbers are,
+  all three policies are being judged against the same yardstick. The
+  comparison between policies is fair even though the absolute number isn't
+  a real-world measurement.
 
 ## Measured results (40-payment batch, real Gemini calls, seed 42)
 
@@ -81,6 +87,32 @@ bank response code, "please contact your issuer," etc.) with no single
 correct category by design — these are excluded from the accuracy score
 above, and the dashboard reports what the model did with them separately
 instead of pretending there's a right answer to grade against.
+
+## This agent vs. doing nothing smart
+
+The same batch, replayed through two naive policies for comparison (dashboard's "policy sandbox" section): retrying every failed payment blindly with no diagnosis, and giving up immediately with no retry at all.
+
+| Policy | Amount recovered | Total attempts | Reckless attempts |
+|---|---|---|---|
+| This agent | ₹17,799.97 | 73 | 0 |
+| Retry everything blindly | ₹17,576.78 | 121 | 52 |
+| Give up immediately | ₹0 | 0 | 0 |
+
+"Reckless attempts" counts retries spent on cards already flagged as fraud
+or already permanently declined by the bank — cases with no real chance of
+success that a diagnosis-driven agent should never touch again.
+
+**The honest framing is attempts, not money.** The recovered-amount gap
+between this agent and blind retry is ₹223 — 1.3%, well within noise for a
+simulated model, and leading with it would look like claiming victory on a
+rounding error. The real result is: **the same money recovered using 40%
+fewer total attempts, zero of which touch a fraud-flagged or permanently
+declined card.** Blind retry's slightly higher raw number comes entirely
+from spending 52 attempts on cases that should never be retried at all —
+including 40 attempts hammering cards already reported stolen — and
+occasionally getting lucky on a handful of them. That's not a viable
+production strategy; it's what "compliant escalation" and "stopping rules"
+in the judging bar are specifically meant to prevent.
 
 **Why these numbers are trustworthy, not vanity.** This went through two
 rounds of getting caught out by our own test data, worth stating plainly

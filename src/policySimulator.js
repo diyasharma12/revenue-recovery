@@ -21,19 +21,26 @@ export function simulatePolicy(payment, classification, hadLlmError, { maxAttemp
   while (status === 'pending') {
     let action = classification.recommended_action;
     let overridden = null;
+    let overrideReason = null;
 
     // Hard-coded, code-enforced stopping rules. The model's recommendation
-    // is a suggestion; these limits always win.
+    // is a suggestion; these limits always win. Each one records *which*
+    // bound fired, not just that some rule fired — an audit trail that
+    // can't say whether it was the attempt cap or the fraud rule isn't
+    // really auditable.
     if (attempt >= maxAttempts && action !== 'stop_permanently' && action !== 'escalate_to_human') {
       overridden = action;
+      overrideReason = 'cap_reached';
       action = 'stop_permanently';
     }
     if (daysSinceFirstFailure >= maxWindowDays && action.startsWith('retry')) {
       overridden = action;
+      overrideReason = 'window_exceeded';
       action = 'escalate_to_human';
     }
     if (classification.category === 'fraud_suspected' && action !== 'stop_permanently') {
       overridden = action;
+      overrideReason = 'fraud_override';
       action = 'stop_permanently';
     }
 
@@ -45,6 +52,7 @@ export function simulatePolicy(payment, classification, hadLlmError, { maxAttemp
       modelRecommendedAction: classification.recommended_action,
       actionTaken: action,
       overridden,
+      overrideReason,
       customerMessage: classification.customer_message,
       reasoning: classification.reasoning,
       retryDelayHours: classification.retry_delay_hours,

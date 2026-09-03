@@ -4,6 +4,12 @@ import { simulatePolicy } from '/src/policySimulator.js';
 // (e.g. "customer_action_needed") — fine as code, unreadable as UI text.
 const humanize = (s) => s.replace(/_/g, ' ');
 
+const OVERRIDE_REASON_LABEL = {
+  cap_reached: 'cap reached',
+  window_exceeded: 'window exceeded',
+  fraud_override: 'fraud override'
+};
+
 const runBtn = document.getElementById('runBtn');
 const statusEl = document.getElementById('status');
 const summaryEl = document.getElementById('summary');
@@ -18,6 +24,8 @@ const statusFilter = document.getElementById('statusFilter');
 document.getElementById('closeModal').onclick = () => modal.close();
 
 let currentPayments = [];
+let showAllRows = false;
+const LEDGER_PAGE_SIZE = 8;
 let productionRules = { maxAttempts: 4, maxWindowDays: 21 };
 statusFilter.onchange = () => renderTable(currentPayments);
 
@@ -56,12 +64,16 @@ function render(data) {
   const s = data.summary;
   const c = s.classification;
   summaryEl.innerHTML = `
-    <div class="stat"><div class="value">${s.recoveryRatePct}%</div><div class="label">Recovery rate</div></div>
-    <div class="stat good"><div class="value">₹${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
-    <div class="stat accent"><div class="value">${c.accuracyPct === null ? 'N/A' : c.accuracyPct + '%'}</div><div class="label">Classification accuracy (${c.correctCount}/${c.scorableCount})</div></div>
-    <div class="stat warn"><div class="value">${s.escalatedCount}</div><div class="label">Escalated</div></div>
-    <div class="stat bad"><div class="value">${s.givenUpCount}</div><div class="label">Given up</div></div>
-    <div class="stat warn"><div class="value">${s.exceptionsCount}</div><div class="label">Exceptions (low confidence)</div></div>
+    <div class="headline-row">
+      <div class="headline-stat primary"><div class="value">₹${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
+      <div class="headline-stat secondary"><div class="value">${s.recoveryRatePct}%</div><div class="label">Recovery rate</div></div>
+    </div>
+    <div class="support-row">
+      <div class="support-stat accent"><div class="value">${c.accuracyPct === null ? 'N/A' : c.accuracyPct + '%'}</div><div class="label">Accuracy (${c.correctCount}/${c.scorableCount})</div></div>
+      <div class="support-stat warn"><div class="value">${s.escalatedCount}</div><div class="label">Escalated</div></div>
+      <div class="support-stat bad"><div class="value">${s.givenUpCount}</div><div class="label">Given up</div></div>
+      <div class="support-stat warn"><div class="value">${s.exceptionsCount}</div><div class="label">Exceptions</div></div>
+    </div>
   `;
 
   renderFunnel(s);
@@ -69,8 +81,14 @@ function render(data) {
   renderClassification(c);
 
   currentPayments = data.payments;
+  showAllRows = false;
   renderTable(currentPayments);
-  renderSandbox(currentPayments);
+  renderSandbox(currentPayments, {
+    recoveredCount: s.recoveredCount,
+    amountRecovered: s.amountRecovered,
+    escalatedCount: s.escalatedCount,
+    givenUpCount: s.givenUpCount
+  });
 }
 
 function funnelBarHTML(segments, total) {
@@ -164,71 +182,71 @@ function recomputeWithPolicy(payments, maxAttempts, maxWindowDays) {
   };
 }
 
-function renderSandbox(payments) {
+function buildPresets() {
+  const b = productionRules;
+  return [
+    { key: 'conservative', name: 'Conservative', maxAttempts: Math.max(1, Math.round(b.maxAttempts / 2)), maxWindowDays: Math.max(3, Math.round(b.maxWindowDays / 3)) },
+    { key: 'balanced', name: 'Balanced', maxAttempts: b.maxAttempts, maxWindowDays: b.maxWindowDays },
+    { key: 'extended', name: 'Extended', maxAttempts: b.maxAttempts + 2, maxWindowDays: Math.round(b.maxWindowDays * 1.67) }
+  ];
+}
+
+function renderSandbox(payments, actual) {
   sandboxEl.innerHTML = `
     <h2>Policy sandbox</h2>
-    <p class="note">This replays the same diagnoses already made — no new API calls — through different stopping-rule limits, so you can see the tradeoff those limits are actually making.</p>
-    <div class="sandbox-controls">
-      <label>Max attempts: <span id="maxAttemptsVal"></span>
-        <input type="range" id="maxAttemptsSlider" min="1" max="8" step="1">
-      </label>
-      <label>Max retry window (days): <span id="maxWindowVal"></span>
-        <input type="range" id="maxWindowSlider" min="3" max="45" step="1">
-      </label>
-      <button id="resetSandbox" class="viewBtn">Reset to actual run</button>
-    </div>
+    <p class="note">Replays the same diagnoses already made — no new API calls — through different stopping-rule limits, so you can see the tradeoff those limits are actually making.</p>
+    <div class="preset-row" id="presetRow"></div>
     <div id="sandboxOutput"></div>
   `;
 
-  const maxAttemptsSlider = document.getElementById('maxAttemptsSlider');
-  const maxWindowSlider = document.getElementById('maxWindowSlider');
-  const maxAttemptsVal = document.getElementById('maxAttemptsVal');
-  const maxWindowVal = document.getElementById('maxWindowVal');
+  const presetRow = document.getElementById('presetRow');
   const output = document.getElementById('sandboxOutput');
+  const presets = buildPresets();
 
-  function update() {
-    const maxAttempts = Number(maxAttemptsSlider.value);
-    const maxWindowDays = Number(maxWindowSlider.value);
-    maxAttemptsVal.textContent = maxAttempts;
-    maxWindowVal.textContent = maxWindowDays;
-
-    const r = recomputeWithPolicy(payments, maxAttempts, maxWindowDays);
-    const isActual = maxAttempts === productionRules.maxAttempts && maxWindowDays === productionRules.maxWindowDays;
-
-    const segments = [
-      { label: 'Recovered', count: r.recoveredCount, cls: 'seg-recovered' },
-      { label: 'Escalated', count: r.escalatedCount, cls: 'seg-escalated' },
-      { label: 'Given up', count: r.givenUpCount, cls: 'seg-given_up' }
-    ];
-
-    output.innerHTML = `
-      <div class="statement sandbox-statement">
-        <div class="stat"><div class="value">${r.recoveryRatePct}%</div><div class="label">Recovery rate</div></div>
-        <div class="stat good"><div class="value">₹${r.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
-        <div class="stat warn"><div class="value">${r.escalatedCount}</div><div class="label">Escalated</div></div>
-        <div class="stat bad"><div class="value">${r.givenUpCount}</div><div class="label">Given up</div></div>
-      </div>
-      ${funnelBarHTML(segments, payments.length)}
-      <p class="note">${isActual ? 'Matches the actual run above.' : 'Hypothetical — the actual run used max attempts = ' + productionRules.maxAttempts + ', window = ' + productionRules.maxWindowDays + ' days.'}</p>
-    `;
+  function renderPresetButtons(activeKey) {
+    presetRow.innerHTML = presets.map((p) => `
+      <button class="preset-btn${p.key === activeKey ? ' active' : ''}" data-key="${p.key}">
+        <div class="name">${p.name}</div>
+        <div class="detail">${p.maxAttempts} attempts, ${p.maxWindowDays}-day window</div>
+      </button>
+    `).join('');
+    presetRow.querySelectorAll('.preset-btn').forEach((btn) => {
+      btn.onclick = () => update(btn.dataset.key);
+    });
   }
 
-  maxAttemptsSlider.value = productionRules.maxAttempts;
-  maxWindowSlider.value = productionRules.maxWindowDays;
-  maxAttemptsSlider.oninput = update;
-  maxWindowSlider.oninput = update;
-  document.getElementById('resetSandbox').onclick = () => {
-    maxAttemptsSlider.value = productionRules.maxAttempts;
-    maxWindowSlider.value = productionRules.maxWindowDays;
-    update();
-  };
+  function update(key) {
+    const preset = presets.find((p) => p.key === key) || presets[1];
+    renderPresetButtons(preset.key);
 
-  update();
+    const r = recomputeWithPolicy(payments, preset.maxAttempts, preset.maxWindowDays);
+    const sign = (n) => (n > 0 ? '+' : n < 0 ? '−' : '');
+
+    const dRecovered = r.recoveredCount - actual.recoveredCount;
+    const dAmount = Math.round((r.amountRecovered - actual.amountRecovered) * 100) / 100;
+    const dEscalated = r.escalatedCount - actual.escalatedCount;
+    const dGivenUp = r.givenUpCount - actual.givenUpCount;
+
+    const chips = [];
+    if (dRecovered !== 0) chips.push(`<span class="delta ${dRecovered > 0 ? 'good' : 'bad'}">${sign(dRecovered)}${Math.abs(dRecovered)} recovered</span>`);
+    if (dAmount !== 0) chips.push(`<span class="delta ${dAmount > 0 ? 'good' : 'bad'}">${sign(dAmount)}₹${Math.abs(dAmount).toLocaleString('en-IN')}</span>`);
+    if (dEscalated !== 0) chips.push(`<span class="delta neutral">${sign(dEscalated)}${Math.abs(dEscalated)} escalated</span>`);
+    if (dGivenUp !== 0) chips.push(`<span class="delta ${dGivenUp > 0 ? 'bad' : 'good'}">${sign(dGivenUp)}${Math.abs(dGivenUp)} given up</span>`);
+
+    output.innerHTML = chips.length
+      ? `<div class="delta-line">${chips.join('')}</div>`
+      : `<p class="unchanged-note">No change — matches the actual run.</p>`;
+  }
+
+  update('balanced');
 }
 
 function paymentFlags(p) {
   const flags = [];
-  if (p.history.some((h) => h.overridden)) flags.push('<span class="flag flag-overridden" title="A stopping rule overrode the model\'s recommendation">overridden</span>');
+  const reasons = new Set(p.history.filter((h) => h.overrideReason).map((h) => h.overrideReason));
+  if (reasons.has('cap_reached')) flags.push('<span class="flag flag-cap" title="The model wanted to keep going, but the attempt limit had already been reached">cap reached</span>');
+  if (reasons.has('window_exceeded')) flags.push('<span class="flag flag-window" title="The model recommended another retry, but the 21-day retry window had already passed">window exceeded</span>');
+  if (reasons.has('fraud_override')) flags.push('<span class="flag flag-fraud" title="Code stopped this immediately because the category is fraud_suspected, regardless of what the model recommended">fraud override</span>');
   if (p.hadLlmError) flags.push('<span class="flag flag-error" title="LLM call failed at least once; fell back to keyword classifier">LLM fallback</span>');
   if (p.isException && !p.hadLlmError) flags.push('<span class="flag flag-warning" title="Model confidence dropped below 0.55 on this payment">low confidence</span>');
   return flags.join(' ') || '<span class="note">—</span>';
@@ -237,9 +255,10 @@ function paymentFlags(p) {
 function renderTable(payments) {
   const filter = statusFilter.value;
   const filtered = filter === 'all' ? payments : payments.filter((p) => p.status === filter);
+  const visible = showAllRows ? filtered : filtered.slice(0, LEDGER_PAGE_SIZE);
 
   tbody.innerHTML = '';
-  filtered.forEach((p) => {
+  visible.forEach((p) => {
     const idx = payments.indexOf(p);
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -257,6 +276,21 @@ function renderTable(payments) {
   document.querySelectorAll('.viewBtn[data-idx]').forEach((btn) => {
     btn.onclick = () => showDetail(currentPayments[btn.dataset.idx]);
   });
+
+  let toggleBtn = document.getElementById('showAllRowsBtn');
+  if (!toggleBtn) {
+    toggleBtn = document.createElement('button');
+    toggleBtn.id = 'showAllRowsBtn';
+    toggleBtn.className = 'show-all-btn';
+    toggleBtn.onclick = () => { showAllRows = !showAllRows; renderTable(currentPayments); };
+    document.querySelector('#tableSection .table-scroll').after(toggleBtn);
+  }
+  if (filtered.length > LEDGER_PAGE_SIZE) {
+    toggleBtn.style.display = 'block';
+    toggleBtn.textContent = showAllRows ? 'Show fewer rows ↑' : `Show all ${filtered.length} rows ↓`;
+  } else {
+    toggleBtn.style.display = 'none';
+  }
 }
 
 function renderClassification(c) {
@@ -301,7 +335,7 @@ function showDetail(p) {
       ${p.history.map((h) => `
         <li>
           <strong>Attempt ${h.attempt}</strong> — category: ${humanize(h.category)} (confidence ${h.confidence})<br>
-          Model recommended: ${humanize(h.modelRecommendedAction)}${h.overridden ? ` <span class="overridden">(overridden by stopping rules -&gt; ${humanize(h.actionTaken)})</span>` : ` -&gt; ${humanize(h.actionTaken)}`}<br>
+          Model recommended: ${humanize(h.modelRecommendedAction)}${h.overridden ? ` <span class="overridden">(${OVERRIDE_REASON_LABEL[h.overrideReason] || 'overridden'} -&gt; ${humanize(h.actionTaken)})</span>` : ` -&gt; ${humanize(h.actionTaken)}`}<br>
           Message sent: "${h.customerMessage}"<br>
           Reasoning: ${h.reasoning}${h.reusedDiagnosis ? ' <em>(reused from attempt 1 — nothing new to re-diagnose)</em>' : ''}<br>
           ${h.llmError ? '<span class="overridden">(LLM call failed — fell back to keyword classifier for this attempt)</span><br>' : ''}
