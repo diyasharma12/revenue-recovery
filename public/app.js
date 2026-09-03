@@ -57,7 +57,7 @@ function render(data) {
   const c = s.classification;
   summaryEl.innerHTML = `
     <div class="stat"><div class="value">${s.recoveryRatePct}%</div><div class="label">Recovery rate</div></div>
-    <div class="stat good"><div class="value">Rs.${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
+    <div class="stat good"><div class="value">₹${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
     <div class="stat accent"><div class="value">${c.accuracyPct === null ? 'N/A' : c.accuracyPct + '%'}</div><div class="label">Classification accuracy (${c.correctCount}/${c.scorableCount})</div></div>
     <div class="stat warn"><div class="value">${s.escalatedCount}</div><div class="label">Escalated</div></div>
     <div class="stat bad"><div class="value">${s.givenUpCount}</div><div class="label">Given up</div></div>
@@ -99,7 +99,7 @@ function renderBaselines(baselines, totalAtRisk) {
     return `
       <tr>
         <td>${b.label}</td>
-        <td class="num">Rs.${b.amountRecovered.toLocaleString('en-IN')}</td>
+        <td class="num">₹${b.amountRecovered.toLocaleString('en-IN')}</td>
         <td class="num">${b.totalAttempts}</td>
         <td class="num">${perAttempt === null ? '—' : perAttempt + '%'}</td>
         <td class="num${b.recklessAttempts > 0 ? ' reckless' : ''}">${b.recklessAttempts}</td>
@@ -118,7 +118,7 @@ function renderBaselines(baselines, totalAtRisk) {
 
   baselineEl.innerHTML = `
     <h2>This agent vs. doing nothing smart</h2>
-    <p class="note">Same payments (Rs.${totalAtRisk.toLocaleString('en-IN')} at risk), replayed through two naive policies. "Reckless attempts" = retries spent on cards already flagged as fraud or already permanently declined — cases with no real chance of recovering that a diagnosis-driven agent should never touch again.</p>
+    <p class="note">Same payments (₹${totalAtRisk.toLocaleString('en-IN')} at risk), replayed through two naive policies. "Reckless attempts" = retries spent on cards already flagged as fraud or already permanently declined — cases with no real chance of recovering that a diagnosis-driven agent should never touch again.</p>
     <div class="table-scroll">
       <table>
         <thead><tr><th>Policy</th><th class="num">Recovered</th><th class="num">Total attempts</th><th class="num">Success per attempt</th><th class="num">Reckless attempts</th></tr></thead>
@@ -204,7 +204,7 @@ function renderSandbox(payments) {
     output.innerHTML = `
       <div class="statement sandbox-statement">
         <div class="stat"><div class="value">${r.recoveryRatePct}%</div><div class="label">Recovery rate</div></div>
-        <div class="stat good"><div class="value">Rs.${r.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
+        <div class="stat good"><div class="value">₹${r.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
         <div class="stat warn"><div class="value">${r.escalatedCount}</div><div class="label">Escalated</div></div>
         <div class="stat bad"><div class="value">${r.givenUpCount}</div><div class="label">Given up</div></div>
       </div>
@@ -245,7 +245,7 @@ function renderTable(payments) {
     tr.innerHTML = `
       <td>${p.customerId}</td>
       <td>${p.planName}</td>
-      <td class="num">Rs.${p.amountInr}</td>
+      <td class="num">₹${p.amountInr}</td>
       <td><span class="status status-${p.status}"><span class="status-dot"></span>${humanize(p.status)}</span></td>
       <td>${paymentFlags(p)}</td>
       <td class="num">${p.attemptsUsed}</td>
@@ -294,7 +294,7 @@ function showDetail(p) {
     : `<p><em>Ground truth: ${humanize(p.trueCategory)} — model predicted "${humanize(p.predictedCategory)}" ${p.predictedCategory === p.trueCategory ? '(correct)' : '(incorrect)'}</em></p>`;
 
   detailContent.innerHTML = `
-    <h3>${p.customerId} — ${p.planName} (Rs.${p.amountInr})</h3>
+    <h3>${p.customerId} — ${p.planName} (₹${p.amountInr})</h3>
     <p class="raw-message">"${p.gatewayRawMessage}"</p>
     ${groundTruthLine}
     <ol>
