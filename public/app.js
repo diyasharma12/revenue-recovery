@@ -233,9 +233,7 @@ function renderSandbox(payments, actual) {
     if (dEscalated !== 0) chips.push(`<span class="delta neutral">${sign(dEscalated)}${Math.abs(dEscalated)} escalated</span>`);
     if (dGivenUp !== 0) chips.push(`<span class="delta ${dGivenUp > 0 ? 'bad' : 'good'}">${sign(dGivenUp)}${Math.abs(dGivenUp)} given up</span>`);
 
-    output.innerHTML = chips.length
-      ? `<div class="delta-line">${chips.join('')}</div>`
-      : `<p class="unchanged-note">No change — matches the actual run.</p>`;
+    output.innerHTML = chips.length ? `<div class="delta-line">${chips.join('')}</div>` : '';
   }
 
   update('balanced');
@@ -249,7 +247,7 @@ function paymentFlags(p) {
   if (reasons.has('fraud_override')) flags.push('<span class="flag flag-fraud" title="Code stopped this immediately because the category is fraud_suspected, regardless of what the model recommended">fraud override</span>');
   if (p.hadLlmError) flags.push('<span class="flag flag-error" title="LLM call failed at least once; fell back to keyword classifier">LLM fallback</span>');
   if (p.isException && !p.hadLlmError) flags.push('<span class="flag flag-warning" title="Model confidence dropped below 0.55 on this payment">low confidence</span>');
-  return flags.join(' ') || '<span class="note">—</span>';
+  return flags.join(' ');
 }
 
 function renderTable(payments) {
