@@ -46,6 +46,10 @@ async function callGemini(payment, attemptContext) {
     model: MODEL,
     contents: buildPrompt(payment, attemptContext),
     config: {
+      // This is a classification task, not creative generation — low
+      // temperature keeps the same payment classified the same way run to
+      // run instead of drifting on re-sampling.
+      temperature: 0,
       toolConfig: {
         functionCallingConfig: {
           mode: FunctionCallingConfigMode.ANY,

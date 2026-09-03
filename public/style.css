@@ -133,6 +133,7 @@ th {
   color: var(--muted); background: var(--surface-2);
 }
 td.num, th.num { text-align: right; font-family: 'IBM Plex Mono', monospace; font-variant-numeric: tabular-nums; }
+td.reckless { color: var(--bad); font-weight: 600; }
 tbody tr:last-child td { border-bottom: none; }
 tbody tr:hover { background: var(--surface-2); }
 
@@ -197,3 +198,22 @@ dialog button#closeModal {
   padding: 0.45rem 1rem; border-radius: 3px; cursor: pointer; font-family: inherit; margin-top: 0.5rem;
 }
 .overridden { color: var(--warn); }
+
+/* Policy sandbox */
+.sandbox-controls {
+  display: flex; gap: 2rem; flex-wrap: wrap; align-items: center;
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+  padding: 1rem 1.3rem; margin-bottom: 1rem;
+}
+.sandbox-controls label {
+  display: flex; flex-direction: column; gap: 0.35rem; font-size: 0.8rem; color: var(--muted);
+  min-width: 200px;
+}
+.sandbox-controls label span {
+  font-family: 'IBM Plex Mono', monospace; color: var(--ink); font-size: 0.95rem; font-weight: 500;
+}
+.sandbox-controls input[type="range"] {
+  accent-color: var(--accent); width: 100%;
+}
+.sandbox-controls button { margin-left: auto; }
+.sandbox-statement { margin-bottom: 0.8rem; }
