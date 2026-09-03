@@ -9,10 +9,16 @@ function mulberry32(seed) {
   };
 }
 
-// Raw gateway decline messages. Some are unambiguous, a few are deliberately
-// vague ("error code 51") so the agent has genuinely hard cases to classify,
-// not just a lookup table dressed up as AI.
+// Raw gateway decline messages. The first block is unambiguous, keyword-
+// obvious cases ("insufficient funds", "expired card") — realistic, but
+// trivially easy to classify by pattern-matching alone. The second block
+// deliberately paraphrases the same underlying reasons with no giveaway
+// keyword, so a keyword-matching classifier gets them wrong while genuine
+// language understanding should still get them right — otherwise a 100%
+// accuracy score proves nothing beyond "the test was too easy." The third
+// block is genuinely ambiguous with no single correct category.
 const RAW_MESSAGES = [
+  // --- keyword-obvious ---
   { text: 'Your bank declined this transaction due to insufficient funds in your account.', trueCategory: 'soft_decline' },
   { text: 'Transaction declined - insufficient balance. Please retry after adding funds.', trueCategory: 'soft_decline' },
   { text: 'Card declined: expired card. Please update your payment method.', trueCategory: 'customer_action_needed' },
@@ -20,11 +26,28 @@ const RAW_MESSAGES = [
   { text: 'Do not honor - issuer declined the transaction.', trueCategory: 'hard_decline' },
   { text: 'Card reported lost or stolen. Transaction blocked.', trueCategory: 'fraud_suspected' },
   { text: 'Suspected fraudulent activity detected on this card.', trueCategory: 'fraud_suspected' },
-  { text: 'Transaction declined - error code 51.', trueCategory: 'ambiguous' },
   { text: 'Bank server timeout, please try again.', trueCategory: 'soft_decline' },
   { text: 'Daily transaction limit exceeded on card.', trueCategory: 'soft_decline' },
   { text: 'Card blocked by issuing bank for security review.', trueCategory: 'hard_decline' },
-  { text: 'Invalid card number format.', trueCategory: 'customer_action_needed' }
+  { text: 'Invalid card number format.', trueCategory: 'customer_action_needed' },
+
+  // --- same reasons, paraphrased with no giveaway keyword ---
+  { text: 'Your available balance was not enough to cover this charge.', trueCategory: 'soft_decline' },
+  { text: 'The payment network timed out before confirming this transaction.', trueCategory: 'soft_decline' },
+  { text: 'This card has reached its spending cap for today.', trueCategory: 'soft_decline' },
+  { text: "This card's validity period has lapsed.", trueCategory: 'customer_action_needed' },
+  { text: 'The security code entered does not match our records.', trueCategory: 'customer_action_needed' },
+  { text: 'The card number entered appears to be incorrectly formatted.', trueCategory: 'customer_action_needed' },
+  { text: 'The issuing bank will not authorize this transaction under any circumstances.', trueCategory: 'hard_decline' },
+  { text: "This account has been flagged by the bank's compliance team and transactions are refused.", trueCategory: 'hard_decline' },
+  { text: 'The cardholder has disputed a prior charge as unauthorized, and this card is now restricted.', trueCategory: 'fraud_suspected' },
+  { text: 'Card issuer has placed a hold pending investigation into unusual account activity.', trueCategory: 'fraud_suspected' },
+
+  // --- genuinely ambiguous, no single correct category ---
+  { text: 'Transaction declined - error code 51.', trueCategory: 'ambiguous' },
+  { text: 'Response code 05.', trueCategory: 'ambiguous' },
+  { text: 'The issuer could not complete this request at this time.', trueCategory: 'ambiguous' },
+  { text: 'Please contact your card issuer for more information regarding this decline.', trueCategory: 'ambiguous' }
 ];
 
 const CARD_TYPES = ['Visa', 'Mastercard', 'RuPay', 'Amex'];

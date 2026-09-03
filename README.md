@@ -69,28 +69,43 @@ card.
 | Metric | Result |
 |---|---|
 | Total at-risk amount | ₹39,054.99 |
-| Amount recovered | ₹18,894.56 |
-| Recovery rate | 52.5% (21/40) |
-| Escalated to human | 0 |
-| Given up (exhausted rules, no fraud) | 19 |
-| **Classification accuracy vs. ground truth** | **100% (36/36 scorable)** |
+| Amount recovered | ₹17,799.97 |
+| Recovery rate | 45% (18/40) |
+| Escalated to human | 11 |
+| Given up (exhausted rules, no fraud) | 11 |
+| Low-confidence exceptions flagged | 2 |
+| **Classification accuracy vs. ground truth** | **97.1% (34/35 scorable)** |
 
-4 of the 40 payments use a deliberately ambiguous decline message
-(`"Transaction declined - error code 51."`) with no single correct category
-by design — these are excluded from the accuracy score above, and the
-dashboard reports what the model did with them separately instead of
-pretending there's a right answer to grade against.
+5 of the 40 payments use deliberately ambiguous decline messages (a bare
+bank response code, "please contact your issuer," etc.) with no single
+correct category by design — these are excluded from the accuracy score
+above, and the dashboard reports what the model did with them separately
+instead of pretending there's a right answer to grade against.
 
-**Why the accuracy number is trustworthy, not vanity:** the synthetic dataset
-tags every decline message with a real ground-truth category
-(`src/syntheticData.js`), so the model's diagnosis can be checked, not just
-trusted. The first version scored **50% accuracy** on this exact batch — the
-model was confusing "card needs the customer to fix something" (expired
-card, bad CVV) with "bank permanently declined it" (do-not-honor, blocked
-for security), because the schema gave it category *names* with no
-definitions. Adding one paragraph of explicit definitions to the schema
-(`ACTION_SCHEMA` in `src/mockClient.js`) took accuracy to **100%** on the
-identical batch — a measured before/after, not a guess.
+**Why these numbers are trustworthy, not vanity.** This went through two
+rounds of getting caught out by our own test data, worth stating plainly
+rather than hiding:
+
+1. The first version of the schema gave the model category *names* with no
+   definitions, and scored only 50% — confusing "card needs the customer to
+   fix something" with "bank permanently declined it." Adding one paragraph
+   of explicit category definitions (`ACTION_SCHEMA` in `src/mockClient.js`)
+   took it to 100%.
+2. That 100% was itself a red flag, not a win: a perfect diagonal confusion
+   matrix, zero escalations, and zero low-confidence exceptions meant the
+   synthetic messages were too easy (obvious keywords like "insufficient" or
+   "expired") and the escalation/exception paths had never actually been
+   exercised — code that's never run is code you have no evidence works.
+   `src/syntheticData.js` now includes paraphrased versions of every
+   category with no giveaway keyword (25 templates total, up from 12), plus
+   more genuinely ambiguous cases. On this harder set, the same
+   keyword-matching fallback used when no API key is present (`mockRecommend`
+   in `src/mockClient.js`) scores only **60%** — while the real model scores
+   **97.1%**, with its one mistake and both low-confidence flags landing
+   exactly on the hardest cases. That 60-vs-97 gap is the actual evidence the
+   model is reasoning about the decline text, not pattern-matching it — and
+   the escalation/exception paths above are now backed by a real run, not
+   just code that's never fired.
 
 ## Running it
 
@@ -144,7 +159,7 @@ down the whole batch).
 
 - Outcome simulation is probabilistic, not a real gateway integration.
 - Synthetic dataset is small (default 40) and messages are drawn from a
-  fixed pool of 12 templates — real gateway decline text is messier and more
+  fixed pool of 25 templates — real gateway decline text is messier and more
   varied than this.
 - No real customer messaging (email/SMS) is sent; `customer_message` is
   generated but only logged.

@@ -56,10 +56,23 @@ export const ACTION_SCHEMA = {
         '(explicit "do not honor", card blocked for security review) — retrying or asking the customer to fix details will not help. ' +
         'fraud_suspected: card reported lost/stolen or flagged for suspected fraud — never retry or contact the customer for payment.'
     },
-    confidence: { type: 'number', description: '0 to 1' },
+    confidence: {
+      type: 'number',
+      description:
+        '0 to 1 — how sure you actually are, calibrated honestly. A genuinely ambiguous or vague decline message ' +
+        '(e.g. a bare bank response code with no further detail) should get a LOW score, not a confident guess dressed up as certainty.'
+    },
     recommended_action: {
       type: 'string',
-      enum: ['retry_now', 'retry_scheduled', 'send_update_payment_link', 'send_grace_period_offer', 'escalate_to_human', 'stop_permanently']
+      enum: ['retry_now', 'retry_scheduled', 'send_update_payment_link', 'send_grace_period_offer', 'escalate_to_human', 'stop_permanently'],
+      description:
+        'retry_now / retry_scheduled: for soft_decline, where simply retrying (now or after a delay) is likely to work. ' +
+        'send_update_payment_link: for customer_action_needed, where the customer must fix their payment method first. ' +
+        'send_grace_period_offer: for a customer_action_needed or soft_decline case where extra time before further action is warranted. ' +
+        'escalate_to_human: for hard_decline (the bank has permanently refused for non-fraud reasons — retrying or asking the ' +
+        'customer to update details will not help, a person needs to follow up) OR whenever your confidence is low and you are ' +
+        'not sure an automated action is safe. ' +
+        'stop_permanently: ONLY for fraud_suspected — never retry or contact the customer.'
     },
     retry_delay_hours: { type: 'number' },
     customer_message: { type: 'string', description: 'Short, empathetic customer-facing message' },
