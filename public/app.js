@@ -59,7 +59,7 @@ function render(data) {
   const c = s.classification;
   summaryEl.innerHTML = `
     <div class="headline-row">
-      <div class="headline-stat primary"><div class="value">₹${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div></div>
+      <div class="headline-stat primary"><div class="value">₹${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div><div class="context">of ₹${s.totalAtRiskAmount.toLocaleString('en-IN')} at risk</div></div>
       <div class="headline-stat secondary"><div class="value">${s.recoveryRatePct}%</div><div class="label">Recovery rate</div></div>
     </div>
     <div class="support-row">
@@ -77,11 +77,13 @@ function render(data) {
   currentPayments = data.payments;
   showAllRows = false;
   renderTable(currentPayments);
+  const agentBaseline = s.baselines?.find((b) => b.key === 'agent');
   renderSandbox(currentPayments, {
     recoveredCount: s.recoveredCount,
     amountRecovered: s.amountRecovered,
     escalatedCount: s.escalatedCount,
-    givenUpCount: s.givenUpCount
+    givenUpCount: s.givenUpCount,
+    totalAttempts: agentBaseline ? agentBaseline.totalAttempts : null
   });
 }
 
@@ -158,10 +160,12 @@ function recomputeWithPolicy(payments, maxAttempts, maxWindowDays) {
   let amountRecovered = 0;
   let escalatedCount = 0;
   let givenUpCount = 0;
+  let totalAttempts = 0;
 
   for (const p of payments) {
     const classification = classificationFromPayment(p);
     const result = simulatePolicy(p, classification, p.hadLlmError, { maxAttempts, maxWindowDays });
+    totalAttempts += result.history.length;
     if (result.status === 'recovered') { recoveredCount++; amountRecovered += result.amountRecovered; }
     else if (result.status === 'escalated') escalatedCount++;
     else givenUpCount++;
@@ -172,7 +176,8 @@ function recomputeWithPolicy(payments, maxAttempts, maxWindowDays) {
     amountRecovered: Math.round(amountRecovered * 100) / 100,
     recoveryRatePct: Math.round((recoveredCount / payments.length) * 1000) / 10,
     escalatedCount,
-    givenUpCount
+    givenUpCount,
+    totalAttempts
   };
 }
 
@@ -214,20 +219,31 @@ function renderSandbox(payments, actual) {
     renderPresetButtons(preset.key);
 
     const r = recomputeWithPolicy(payments, preset.maxAttempts, preset.maxWindowDays);
-    const sign = (n) => (n > 0 ? '+' : n < 0 ? '−' : '');
+    const sign = (n) => (n > 0 ? '+' : n < 0 ? '−' : '±');
+    const clsFor = (n, invert) => (n === 0 ? 'neutral' : (invert ? n < 0 : n > 0) ? 'good' : 'bad');
 
     const dRecovered = r.recoveredCount - actual.recoveredCount;
     const dAmount = Math.round((r.amountRecovered - actual.amountRecovered) * 100) / 100;
     const dEscalated = r.escalatedCount - actual.escalatedCount;
     const dGivenUp = r.givenUpCount - actual.givenUpCount;
+    const dAttempts = actual.totalAttempts != null ? r.totalAttempts - actual.totalAttempts : null;
 
-    const chips = [];
-    if (dRecovered !== 0) chips.push(`<span class="delta ${dRecovered > 0 ? 'good' : 'bad'}">${sign(dRecovered)}${Math.abs(dRecovered)} recovered</span>`);
-    if (dAmount !== 0) chips.push(`<span class="delta ${dAmount > 0 ? 'good' : 'bad'}">${sign(dAmount)}₹${Math.abs(dAmount).toLocaleString('en-IN')}</span>`);
-    if (dEscalated !== 0) chips.push(`<span class="delta neutral">${sign(dEscalated)}${Math.abs(dEscalated)} escalated</span>`);
-    if (dGivenUp !== 0) chips.push(`<span class="delta ${dGivenUp > 0 ? 'bad' : 'good'}">${sign(dGivenUp)}${Math.abs(dGivenUp)} given up</span>`);
+    const isActual = dRecovered === 0 && dAmount === 0 && dEscalated === 0 && dGivenUp === 0;
 
-    output.innerHTML = chips.length ? `<div class="delta-line">${chips.join('')}</div>` : '';
+    // Always show real numbers, even when nothing changed — a control that
+    // produces no visible output looks broken, not "no difference."
+    const chips = [
+      `<span class="delta ${clsFor(dRecovered)}">${sign(dRecovered)}${Math.abs(dRecovered)} recovered</span>`,
+      `<span class="delta ${clsFor(dAmount)}">${sign(dAmount)}₹${Math.abs(dAmount).toLocaleString('en-IN')}</span>`,
+      `<span class="delta neutral">${sign(dEscalated)}${Math.abs(dEscalated)} escalated</span>`,
+      `<span class="delta ${clsFor(dGivenUp, true)}">${sign(dGivenUp)}${Math.abs(dGivenUp)} given up</span>`
+    ];
+    if (dAttempts !== null) chips.push(`<span class="delta neutral">${sign(dAttempts)}${Math.abs(dAttempts)} attempts</span>`);
+
+    output.innerHTML = `
+      <div class="delta-line">${chips.join('')}</div>
+      ${isActual ? '<p class="note" style="margin:0.5rem 0 0;">Matches the actual run.</p>' : ''}
+    `;
   }
 
   update('balanced');
@@ -250,20 +266,27 @@ function renderTable(payments) {
   const visible = showAllRows ? filtered : filtered.slice(0, LEDGER_PAGE_SIZE);
 
   tbody.innerHTML = '';
+  let anyFlags = false;
   visible.forEach((p) => {
     const idx = payments.indexOf(p);
+    const flagsHtml = paymentFlags(p);
+    if (flagsHtml) anyFlags = true;
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td>${p.customerId}</td>
       <td>${p.planName}</td>
       <td class="num">₹${p.amountInr}</td>
       <td><span class="status status-${p.status}"><span class="status-dot"></span>${humanize(p.status)}</span></td>
-      <td>${paymentFlags(p)}</td>
+      <td class="flags-cell">${flagsHtml}</td>
       <td class="num">${p.attemptsUsed}</td>
       <td><button data-idx="${idx}" class="viewBtn">View trail</button></td>
     `;
     tbody.appendChild(tr);
   });
+
+  const flagsHeader = document.getElementById('flagsHeader');
+  if (flagsHeader) flagsHeader.style.display = anyFlags ? '' : 'none';
+  document.querySelectorAll('.flags-cell').forEach((td) => { td.style.display = anyFlags ? '' : 'none'; });
 
   document.querySelectorAll('.viewBtn[data-idx]').forEach((btn) => {
     btn.onclick = () => showDetail(currentPayments[btn.dataset.idx]);
@@ -291,7 +314,7 @@ function renderClassification(c) {
     const row = c.confusionMatrix[trueCat];
     const cells = categories.map((predCat) => {
       const count = row[predCat] || 0;
-      const cls = predCat === trueCat ? 'match' : count > 0 ? 'mismatch' : '';
+      const cls = count === 0 ? '' : predCat === trueCat ? 'match' : 'mismatch';
       return `<td class="${cls}">${count || ''}</td>`;
     }).join('');
     return `<tr><th>${humanize(trueCat)}</th>${cells}</tr>`;
