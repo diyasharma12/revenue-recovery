@@ -2,6 +2,14 @@
 
 Razorpay AI Buildathon — Track 03: AI Revenue Recovery
 
+**In three lines:** an AI agent diagnoses why each failed subscription
+payment happened and picks a bounded next action, but code — not the
+model — always has final say on retries, escalation, and fraud. Same money
+recovered as blindly retrying everything, using 40% fewer attempts and zero
+of them touching a fraud-flagged or already-declined card. 97.1%
+classification accuracy against ground truth (34/35 scorable — 5
+deliberately ambiguous cases excluded and reported separately, not hidden).
+
 ## The problem
 
 Subscription payments fail for a lot of reasons — insufficient funds, an
@@ -81,6 +89,7 @@ card.
 | Given up (exhausted rules, no fraud) | 11 |
 | Low-confidence exceptions flagged | 2 |
 | **Classification accuracy vs. ground truth** | **97.1% (34/35 scorable)** |
+| Keyword-matching baseline accuracy (same set, no AI) | 60% |
 
 5 of the 40 payments use deliberately ambiguous decline messages (a bare
 bank response code, "please contact your issuer," etc.) with no single
@@ -178,7 +187,10 @@ down the whole batch).
   example (see table above for real numbers from a real run).
 - **Compliant escalation:** fraud-suspected cases stop immediately;
   unresolved cases after the retry window escalate to a human rather than
-  looping forever.
+  looping forever. This isn't just an engineering preference — RBI's
+  e-mandate framework for recurring payments already requires a ~24-hour
+  pre-debit notification before each retry attempt, so bounded, deliberate
+  retry behavior is a regulatory expectation in India, not just good UX.
 - **Stopping rules:** hard-coded in `src/rules.js`, enforced in
   `src/dunningEngine.js` regardless of what the model suggests, and every
   override is logged.

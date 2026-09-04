@@ -4,12 +4,6 @@ import { simulatePolicy } from '/src/policySimulator.js';
 // (e.g. "customer_action_needed") — fine as code, unreadable as UI text.
 const humanize = (s) => s.replace(/_/g, ' ');
 
-const OVERRIDE_REASON_LABEL = {
-  cap_reached: 'cap reached',
-  window_exceeded: 'window exceeded',
-  fraud_override: 'fraud override'
-};
-
 const runBtn = document.getElementById('runBtn');
 const statusEl = document.getElementById('status');
 const summaryEl = document.getElementById('summary');
@@ -320,6 +314,23 @@ function renderClassification(c) {
   `;
 }
 
+function describeCheck(h, p) {
+  if (h.overridden) {
+    if (h.overrideReason === 'cap_reached') {
+      return `rules.js: attempt ${h.attempt} of max ${productionRules.maxAttempts} → override to ${humanize(h.actionTaken)}`;
+    }
+    if (h.overrideReason === 'window_exceeded') {
+      const days = Math.round((new Date(h.timestamp) - new Date(p.firstFailedAt)) / 86400000);
+      return `rules.js: day ${days} of max ${productionRules.maxWindowDays} → override to ${humanize(h.actionTaken)}`;
+    }
+    if (h.overrideReason === 'fraud_override') {
+      return `rules.js: category is fraud_suspected → override to ${humanize(h.actionTaken)}`;
+    }
+    return `rules.js: stopping rule fired → override to ${humanize(h.actionTaken)}`;
+  }
+  return `rules.js: attempt ${h.attempt} of max ${productionRules.maxAttempts}, not fraud, within window — no override needed`;
+}
+
 function showDetail(p) {
   const groundTruthLine = p.trueCategory === 'ambiguous'
     ? `<p><em>Ground truth: deliberately ambiguous — model predicted "${humanize(p.predictedCategory)}"</em></p>`
@@ -332,12 +343,14 @@ function showDetail(p) {
     <ol>
       ${p.history.map((h) => `
         <li>
-          <strong>Attempt ${h.attempt}</strong> — category: ${humanize(h.category)} (confidence ${h.confidence})<br>
-          Model recommended: ${humanize(h.modelRecommendedAction)}${h.overridden ? ` <span class="overridden">(${OVERRIDE_REASON_LABEL[h.overrideReason] || 'overridden'} -&gt; ${humanize(h.actionTaken)})</span>` : ` -&gt; ${humanize(h.actionTaken)}`}<br>
+          <strong>Attempt ${h.attempt}</strong><br>
+          Diagnosed as <strong>${humanize(h.category)}</strong>, confidence ${h.confidence}${h.reusedDiagnosis ? ' <em>(reused from attempt 1 — nothing new to re-diagnose)</em>' : ''}<br>
+          Model wanted: <strong>${humanize(h.modelRecommendedAction)}</strong><br>
+          <span class="${h.overridden ? 'overridden' : ''}">${describeCheck(h, p)}</span><br>
+          Result: <strong>${humanize(h.actionTaken)}</strong>${h.outcome ? `, outcome: ${h.outcome}` : ''}<br>
+          ${h.llmError ? '<span class="overridden">LLM call failed — fell back to keyword classifier for this attempt</span><br>' : ''}
           Message sent: "${h.customerMessage}"<br>
-          Reasoning: ${h.reasoning}${h.reusedDiagnosis ? ' <em>(reused from attempt 1 — nothing new to re-diagnose)</em>' : ''}<br>
-          ${h.llmError ? '<span class="overridden">(LLM call failed — fell back to keyword classifier for this attempt)</span><br>' : ''}
-          ${h.outcome ? `Outcome: ${h.outcome}` : ''}
+          Reasoning: ${h.reasoning}
         </li>
       `).join('')}
     </ol>

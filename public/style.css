@@ -88,22 +88,22 @@ button#runBtn:disabled { opacity: 0.5; cursor: default; }
    numbers means nothing is actually emphasized. */
 .statement {
   border: 1px solid var(--rule); border-radius: 4px;
-  background: var(--surface); padding: 1.3rem 1.4rem;
+  background: var(--surface); padding: 1.8rem 2rem;
 }
-.headline-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2.5rem; margin-bottom: 1.2rem; }
+.headline-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3.5rem; margin-bottom: 1.8rem; }
 .headline-stat .value {
   font-family: 'IBM Plex Mono', ui-monospace, monospace; font-weight: 600;
   font-variant-numeric: tabular-nums; white-space: nowrap; color: var(--good);
 }
 .headline-stat.primary .value { font-size: 2.1rem; }
 .headline-stat.secondary .value { font-size: 1.5rem; color: var(--ink); }
-.headline-stat .label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.35rem; }
-.support-row { display: flex; flex-wrap: wrap; gap: 2rem; }
+.headline-stat .label { color: var(--muted); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.5rem; }
+.support-row { display: flex; flex-wrap: wrap; gap: 2.75rem; }
 .support-stat .value {
   font-family: 'IBM Plex Mono', ui-monospace, monospace;
   font-size: 0.95rem; font-weight: 500; font-variant-numeric: tabular-nums; white-space: nowrap;
 }
-.support-stat .label { color: var(--muted); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.25rem; }
+.support-stat .label { color: var(--muted); font-size: 0.66rem; text-transform: uppercase; letter-spacing: 0.06em; margin-top: 0.35rem; }
 .support-stat.accent .value { color: var(--accent); }
 .support-stat.warn .value { color: var(--warn); }
 .support-stat.bad .value { color: var(--bad); }
