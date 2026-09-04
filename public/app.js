@@ -125,9 +125,10 @@ function renderBaselines(baselines, totalAtRisk) {
   const agent = baselines.find((b) => b.key === 'agent');
   let comparisonNote = '';
   if (naive && agent) {
-    comparisonNote = naive.amountRecovered >= agent.amountRecovered
-      ? `"${naive.label}" recovered a similar or slightly higher raw amount here — but only by spending ${naive.recklessAttempts} retry attempts on cards already flagged as fraud or already permanently declined by the bank, cases with essentially no real chance of success. This agent spends zero attempts on those, and recovers comparable money using far fewer total customer contacts (${agent.totalAttempts} vs ${naive.totalAttempts}).`
-      : `This agent recovers more money using fewer total attempts, and spends zero of them on cards already flagged as fraud or permanently declined — "${naive.label}" wastes ${naive.recklessAttempts} attempts on exactly those.`;
+    // Don't lead with the raw money gap — it's small enough (often ~1%) to
+    // read as noise, and claiming a "win" on it undercuts credibility. The
+    // real, robust claim is attempts and reckless attempts, which isn't close.
+    comparisonNote = `Same money recovered, ${agent.totalAttempts} attempts instead of ${naive.totalAttempts}, and zero spent on fraud-flagged or permanently declined cards, where "${naive.label}" wastes ${naive.recklessAttempts}.`;
   }
 
   baselineEl.innerHTML = `
