@@ -187,10 +187,15 @@ down the whole batch).
   example (see table above for real numbers from a real run).
 - **Compliant escalation:** fraud-suspected cases stop immediately;
   unresolved cases after the retry window escalate to a human rather than
-  looping forever. This isn't just an engineering preference — RBI's
-  e-mandate framework for recurring payments already requires a ~24-hour
-  pre-debit notification before each retry attempt, so bounded, deliberate
-  retry behavior is a regulatory expectation in India, not just good UX.
+  looping forever. `MAX_ATTEMPTS = 4` isn't an arbitrary engineering number —
+  NPCI's 2025 UPI AutoPay rules cap mandate execution at exactly one original
+  attempt plus three retries (four total) before a payment must be marked
+  failed for that cycle, enforced from a 31 July 2025 compliance deadline.
+  The dashboard's "Balanced" policy preset is labeled against this cap
+  directly; "Extended" is labeled as exceeding it. RBI's broader e-mandate
+  framework separately requires a pre-debit notification (24-48 hours ahead)
+  before each recurring charge attempt, so bounded, deliberate retry
+  behavior is a regulatory expectation in India, not just good UX.
 - **Stopping rules:** hard-coded in `src/rules.js`, enforced in
   `src/dunningEngine.js` regardless of what the model suggests, and every
   override is logged.

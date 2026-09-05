@@ -10,6 +10,7 @@ const summaryEl = document.getElementById('summary');
 const classificationEl = document.getElementById('classificationSection');
 const funnelEl = document.getElementById('funnelSection');
 const baselineEl = document.getElementById('baselineSection');
+const modeBannerEl = document.getElementById('modeBanner');
 const sandboxEl = document.getElementById('sandboxSection');
 const tbody = document.querySelector('#paymentsTable tbody');
 const modal = document.getElementById('detailModal');
@@ -57,6 +58,9 @@ runBtn.onclick = async () => {
 function render(data) {
   const s = data.summary;
   const c = s.classification;
+
+  renderModeBanner(data);
+
   summaryEl.innerHTML = `
     <div class="headline-row">
       <div class="headline-stat primary"><div class="value">₹${s.amountRecovered.toLocaleString('en-IN')}</div><div class="label">Amount recovered</div><div class="context">of ₹${s.totalAtRiskAmount.toLocaleString('en-IN')} at risk</div></div>
@@ -105,6 +109,22 @@ function renderFunnel(s) {
   funnelEl.innerHTML = `<h2>Outcome breakdown</h2>${funnelBarHTML(segments, s.totalPayments)}`;
 }
 
+function renderModeBanner(data) {
+  const total = data.payments.length;
+  const fallbackCount = data.payments.filter((p) => p.hadLlmError).length;
+
+  if (data.provider !== 'gemini' && data.provider !== 'claude') {
+    modeBannerEl.innerHTML = `<strong>Mock mode.</strong> No Gemini or Claude API key is configured on this server, so every classification below came from the keyword-fallback classifier, not the model described in this submission.`;
+    modeBannerEl.style.display = '';
+  } else if (fallbackCount > 0) {
+    modeBannerEl.innerHTML = `<strong>Partial fallback.</strong> ${fallbackCount} of ${total} payments hit an API error or timeout this run and fell back to the keyword classifier — look for the "LLM fallback" flag in the ledger below.`;
+    modeBannerEl.style.display = '';
+  } else {
+    modeBannerEl.innerHTML = '';
+    modeBannerEl.style.display = 'none';
+  }
+}
+
 function renderBaselines(baselines, totalAtRisk) {
   if (!baselines) { baselineEl.innerHTML = ''; return; }
 
@@ -125,10 +145,22 @@ function renderBaselines(baselines, totalAtRisk) {
   const agent = baselines.find((b) => b.key === 'agent');
   let comparisonNote = '';
   if (naive && agent) {
-    // Don't lead with the raw money gap — it's small enough (often ~1%) to
-    // read as noise, and claiming a "win" on it undercuts credibility. The
-    // real, robust claim is attempts and reckless attempts, which isn't close.
-    comparisonNote = `Same money recovered, ${agent.totalAttempts} attempts instead of ${naive.totalAttempts}, and zero spent on fraud-flagged or permanently declined cards, where "${naive.label}" wastes ${naive.recklessAttempts}.`;
+    // Never assert "same money" as a fixed claim — check the actual gap on
+    // THIS run. With a real, accurate model the gap is usually noise-sized;
+    // with a degraded classifier (e.g. mock fallback) it can be large and
+    // real, and claiming parity over numbers that visibly aren't equal is
+    // exactly the kind of overclaim this section exists to avoid.
+    const gapPct = naive.amountRecovered ? Math.abs(agent.amountRecovered - naive.amountRecovered) / naive.amountRecovered * 100 : 0;
+    const agentAmt = `₹${agent.amountRecovered.toLocaleString('en-IN')}`;
+    const naiveAmt = `₹${naive.amountRecovered.toLocaleString('en-IN')}`;
+
+    if (gapPct < 5) {
+      comparisonNote = `Same money recovered, ${agent.totalAttempts} attempts instead of ${naive.totalAttempts}, and zero spent on fraud-flagged or permanently declined cards, where "${naive.label}" wastes ${naive.recklessAttempts}.`;
+    } else if (agent.amountRecovered > naive.amountRecovered) {
+      comparisonNote = `${agentAmt} recovered vs ${naiveAmt} for "${naive.label}", using ${agent.totalAttempts} attempts instead of ${naive.totalAttempts} — and zero of them on fraud-flagged or permanently declined cards, where "${naive.label}" wastes ${naive.recklessAttempts}.`;
+    } else {
+      comparisonNote = `${agentAmt} recovered here vs ${naiveAmt} for "${naive.label}" — a real gap, not noise, worth saying plainly. But ${naive.recklessAttempts} of "${naive.label}"'s attempts were spent on cards already flagged as fraud or permanently declined, cases this agent never touches. A higher raw number that risks contacting a fraud case isn't directly comparable to a lower one that never does.`;
+    }
   }
 
   baselineEl.innerHTML = `
@@ -185,9 +217,21 @@ function recomputeWithPolicy(payments, maxAttempts, maxWindowDays) {
 function buildPresets() {
   const b = productionRules;
   return [
-    { key: 'conservative', name: 'Conservative', maxAttempts: Math.max(1, Math.round(b.maxAttempts / 2)), maxWindowDays: Math.max(3, Math.round(b.maxWindowDays / 3)) },
-    { key: 'balanced', name: 'Balanced', maxAttempts: b.maxAttempts, maxWindowDays: b.maxWindowDays },
-    { key: 'extended', name: 'Extended', maxAttempts: b.maxAttempts + 2, maxWindowDays: Math.round(b.maxWindowDays * 1.67) }
+    {
+      key: 'conservative', name: 'Conservative',
+      maxAttempts: Math.max(1, Math.round(b.maxAttempts / 2)), maxWindowDays: Math.max(3, Math.round(b.maxWindowDays / 3)),
+      note: 'Stricter than required'
+    },
+    {
+      key: 'balanced', name: 'Balanced',
+      maxAttempts: b.maxAttempts, maxWindowDays: b.maxWindowDays,
+      note: 'Matches NPCI’s UPI AutoPay cap (1 original + 3 retries)'
+    },
+    {
+      key: 'extended', name: 'Extended',
+      maxAttempts: b.maxAttempts + 2, maxWindowDays: Math.round(b.maxWindowDays * 1.67),
+      note: 'Exceeds the AutoPay retry cap — not compliant on that rail'
+    }
   ];
 }
 
@@ -208,6 +252,7 @@ function renderSandbox(payments, actual) {
       <button class="preset-btn${p.key === activeKey ? ' active' : ''}" data-key="${p.key}">
         <div class="name">${p.name}</div>
         <div class="detail">${p.maxAttempts} attempts, ${p.maxWindowDays}-day window</div>
+        <div class="reg-note">${p.note}</div>
       </button>
     `).join('');
     presetRow.querySelectorAll('.preset-btn').forEach((btn) => {

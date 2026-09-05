@@ -23,6 +23,20 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+const REQUEST_TIMEOUT_MS = 20000;
+
+// The SDK call has no built-in timeout — if Google's service accepts the
+// connection but never responds (seen in practice during a demand spike,
+// distinct from an outright 429/503), this hangs forever with nothing to
+// catch or retry. Racing it against a timeout turns a silent freeze into a
+// retryable error like any other transient failure.
+function withTimeout(promise, ms) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => setTimeout(() => reject(Object.assign(new Error('Gemini request timed out'), { status: 'TIMEOUT' })), ms))
+  ]);
+}
+
 // Pulls the server-suggested wait out of a 429's error body
 // (details[].retryDelay, e.g. "37s"); falls back to exponential backoff
 // if the response didn't include one.
@@ -42,7 +56,7 @@ async function callGemini(payment, attemptContext) {
   if (wait > 0) await sleep(wait);
   lastCallAt = Date.now();
 
-  return client.models.generateContent({
+  return withTimeout(client.models.generateContent({
     model: MODEL,
     contents: buildPrompt(payment, attemptContext),
     config: {
@@ -58,7 +72,7 @@ async function callGemini(payment, attemptContext) {
       },
       tools: [{ functionDeclarations: [TOOL_DECLARATION] }]
     }
-  });
+  }), REQUEST_TIMEOUT_MS);
 }
 
 export async function recommendAction(payment, attemptContext) {
@@ -73,7 +87,12 @@ export async function recommendAction(payment, attemptContext) {
       }
       return call.args;
     } catch (err) {
-      if (err.status !== 429 || attempt >= MAX_RETRIES) throw err;
+      // 429 = quota exhausted (has a server-suggested wait); 503 = the model
+      // is transiently overloaded; TIMEOUT = it never responded at all.
+      // All three are worth retrying; anything else (bad request, auth,
+      // etc.) will never succeed on retry, so fail fast instead of stalling.
+      const retryable = err.status === 429 || err.status === 503 || err.status === 'TIMEOUT';
+      if (!retryable || attempt >= MAX_RETRIES) throw err;
       await sleep(retryDelayMsFrom(err, attempt));
     }
   }

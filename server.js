@@ -28,6 +28,7 @@ app.post('/api/run-batch', async (req, res) => {
     const result = await runBatch(payments, (completed, total) => {
       progress = { running: true, completed, total };
     });
+    result.provider = activeProvider();
     lastRun = result;
     res.json(result);
   } catch (err) {
